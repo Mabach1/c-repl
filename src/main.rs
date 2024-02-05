@@ -8,20 +8,27 @@ fn read_file(file_name: &str) -> String {
 }
 
 fn write_result(file_contents: String) {
-    fs::remove_file("./repl-content.c").ok();
+    fs::remove_file("./repl-content.c").unwrap();
     fs::write("./repl-content.c", file_contents).unwrap();
 }
 
 fn add_command<'a>(file_lines: Vec<&'a str>, command: &'a String) -> Vec<&'a str> {
     let mut res: Vec<&str> = vec![];
+    let mut preprocessor = false;
+
+    if command.contains("#define") || command.contains("#include") {
+        res.push(&command);
+        preprocessor = true;
+    }
+
     for line in file_lines {
-        if line.contains("// write here") {
-            res.push(&command);
+        // we don't want to print everything over and over
+        if line.contains("printf") {
             continue;
         }
 
-        if line.contains("return 0") {
-            res.push("// write here");
+        if line.contains("// write here") && !preprocessor {
+            res.push(&command);
         }
 
         res.push(line);
@@ -57,7 +64,7 @@ fn main() {
     let file_content = read_file("repl-content.c");
     let file_lines: Vec<&str> = file_content.split('\n').collect();
 
-    let command = "printf(\"%d\", a);".to_string();
+    let command = "int b = 2;".to_string();
     let modified_file = add_command(file_lines, &command);
 
     write_result(modified_file.join("\n"));
@@ -65,6 +72,7 @@ fn main() {
     let compile_output = Command::new("gcc")
         .arg("repl-content.c")
         .arg("-orepl")
+        .arg("-Werror=implicit-function-declaration")
         .output()
         .unwrap();
 
