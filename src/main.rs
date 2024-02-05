@@ -29,6 +29,30 @@ fn add_command<'a>(file_lines: Vec<&'a str>, command: &'a String) -> Vec<&'a str
     res
 }
 
+// might be useful later
+fn find_error_line(error_output: &String) -> usize {
+    let lines: Vec<_> = error_output.split("\n").collect();
+
+    let error_msg_prefix = "repl-content.c:";
+    let err_line = lines.get(1).unwrap().to_string();
+    let line_number_idx = err_line
+        .find(error_msg_prefix)
+        .map(|idx| idx + error_msg_prefix.len())
+        .unwrap();
+
+    let mut res_lit = String::new();
+
+    for ch in err_line[line_number_idx..]
+        .chars()
+        .by_ref()
+        .take_while(|c| c.is_numeric())
+    {
+        res_lit.push(ch);
+    }
+
+    res_lit.parse::<usize>().unwrap()
+}
+
 fn main() {
     let file_content = read_file("repl-content.c");
     let file_lines: Vec<&str> = file_content.split('\n').collect();
@@ -40,13 +64,15 @@ fn main() {
 
     let compile_output = Command::new("gcc")
         .arg("repl-content.c")
-        .arg("-orepl")
+        .arg("-o repl")
         .output()
         .unwrap();
 
     if !compile_output.status.success() {
         let error_msg = String::from_utf8(compile_output.stderr.clone()).unwrap();
+        find_error_line(&error_msg);
         println!("{}", error_msg);
+        // TODO: extract the line number and remove the line from the file
     } else {
         let result = Command::new("./repl").output();
         let output = String::from_utf8(result.unwrap().stdout).unwrap();
