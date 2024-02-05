@@ -8,7 +8,7 @@ fn read_file(file_name: &str) -> String {
 }
 
 fn write_result(file_contents: String) {
-    fs::remove_file("./repl-content.c").unwrap();
+    fs::remove_file("./repl-content.c").ok();
     fs::write("./repl-content.c", file_contents).unwrap();
 }
 
@@ -57,14 +57,14 @@ fn main() {
     let file_content = read_file("repl-content.c");
     let file_lines: Vec<&str> = file_content.split('\n').collect();
 
-    let command = "printf(\"value: \", a);".to_string();
+    let command = "printf(\"%d\", a);".to_string();
     let modified_file = add_command(file_lines, &command);
 
     write_result(modified_file.join("\n"));
 
     let compile_output = Command::new("gcc")
         .arg("repl-content.c")
-        .arg("-o repl")
+        .arg("-orepl")
         .output()
         .unwrap();
 
@@ -72,11 +72,16 @@ fn main() {
         let error_msg = String::from_utf8(compile_output.stderr.clone()).unwrap();
         find_error_line(&error_msg);
         println!("{}", error_msg);
-        // TODO: extract the line number and remove the line from the file
+
+        fs::remove_file("./repl-content.c").ok();
+        fs::copy("./previous-repl-content.c", "./repl-content.c").unwrap();
     } else {
         let result = Command::new("./repl").output();
         let output = String::from_utf8(result.unwrap().stdout).unwrap();
         println!("{}", output);
+
+        // if everything was successful, we copy the working version to a temporary file
+        fs::copy("./repl-content.c", "./previous-repl-content.c").ok();
     }
 
     // loop {

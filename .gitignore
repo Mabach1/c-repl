@@ -2,3 +2,4 @@
 c-testing/foo.gccmessages
 c-testing/main
 repl
+.vscode/settings.json
