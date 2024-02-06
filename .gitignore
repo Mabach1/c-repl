@@ -1,5 +1,4 @@
 /target
-c-testing/foo.gccmessages
-c-testing/main
+c-testing/* 
 repl
 .vscode/settings.json

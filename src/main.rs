@@ -35,6 +35,10 @@ fn add_command<'a>(file_lines: Vec<&'a str>, command: &'a String) -> Vec<&'a str
 }
 
 fn main() {
+    static REPL_PATH: &'static str = "./repl-internals/repl-content.c";
+    static PREV_REPL_PATH: &'static str = "./repl-internals/prev-repl-content.c";
+    static REPL_EXE: &'static str = "./repl-internals/repl";
+
     loop {
         let mut buffer = String::new();
 
@@ -46,16 +50,16 @@ fn main() {
 
         let command = buffer.trim_end().to_string();
 
-        let file_content = read_file("repl-content.c");
+        let file_content = read_file(REPL_PATH);
         let file_lines: Vec<&str> = file_content.split('\n').collect();
 
         let modified_file = add_command(file_lines, &command);
 
-        write_result("./repl-content.c", &modified_file.join("\n"));
+        write_result(REPL_PATH, &modified_file.join("\n"));
 
         let compile_output = Command::new("gcc")
-            .arg("repl-content.c")
-            .arg("-orepl")
+            .arg(REPL_PATH)
+            .arg("-orepl-internals/repl")
             .arg("-Werror=implicit-function-declaration")
             .output()
             .unwrap();
@@ -64,17 +68,17 @@ fn main() {
             let error_msg = String::from_utf8(compile_output.stderr.clone()).unwrap();
             println!("{}", error_msg);
 
-            fs::remove_file("./repl-content.c").ok();
-            fs::copy("./previous-repl-content.c", "./repl-content.c").unwrap();
+            fs::remove_file(REPL_PATH).ok();
+            fs::copy(PREV_REPL_PATH, REPL_PATH).unwrap();
         } else {
-            let result = Command::new("./repl").output();
+            let result = Command::new(REPL_EXE).output();
             let output = String::from_utf8(result.unwrap().stdout).unwrap();
 
             if !output.is_empty() {
                 println!("{}", output);
             }
 
-            fs::copy("./repl-content.c", "./previous-repl-content.c").ok();
+            fs::copy(REPL_PATH, PREV_REPL_PATH).ok();
         }
     }
 }
