@@ -63,7 +63,7 @@ fn command_execute() -> String {
     command_output
 }
 
-fn repl_internal_setup() {
+fn repl_internal_reset() {
     let default_setup = r#"int main(void) {
     // write here
     return 0;
@@ -77,7 +77,7 @@ fn repl_internal_setup() {
 }
 
 fn main() {
-    repl_internal_setup();
+    repl_internal_reset();
 
     loop {
         let mut buffer = String::new();
@@ -107,4 +107,6 @@ fn main() {
             println!("{}", command_result);
         }
     }
+
+    repl_internal_reset();
 }
