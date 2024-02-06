@@ -63,7 +63,22 @@ fn command_execute() -> String {
     command_output
 }
 
+fn repl_internal_setup() {
+    let default_setup = r#"int main(void) {
+    // write here
+    return 0;
+}"#;
+    // not sure about how effective this approach is, might change later
+    fs::remove_file(REPL_PATH).ok();
+    fs::remove_file(PREV_REPL_PATH).ok();
+
+    fs::write(REPL_PATH, default_setup).unwrap();
+    fs::write(PREV_REPL_PATH, default_setup).unwrap();
+}
+
 fn main() {
+    repl_internal_setup();
+
     loop {
         let mut buffer = String::new();
 
@@ -83,7 +98,7 @@ fn main() {
         write_result(REPL_PATH, &modified_file.join("\n"));
 
         let command_result = command_execute();
-        
+
         if !command_result.is_empty() {
             println!("{}", command_result);
         }
