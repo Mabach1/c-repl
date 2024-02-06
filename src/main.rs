@@ -61,45 +61,47 @@ fn find_error_line(error_output: &String) -> usize {
 }
 
 fn main() {
-    let file_content = read_file("repl-content.c");
-    let file_lines: Vec<&str> = file_content.split('\n').collect();
+    loop {
+        let mut buffer = String::new();
 
-    let command = "int b = 2;".to_string();
-    let modified_file = add_command(file_lines, &command);
+        print!("C > ");
+        io::stdout().flush().unwrap();
+        io::stdin()
+            .read_line(&mut buffer)
+            .expect("Error reading from STDIN");
 
-    write_result(modified_file.join("\n"));
+        let command = buffer.trim_end().to_string();
 
-    let compile_output = Command::new("gcc")
-        .arg("repl-content.c")
-        .arg("-orepl")
-        .arg("-Werror=implicit-function-declaration")
-        .output()
-        .unwrap();
+        let file_content = read_file("repl-content.c");
+        let file_lines: Vec<&str> = file_content.split('\n').collect();
 
-    if !compile_output.status.success() {
-        let error_msg = String::from_utf8(compile_output.stderr.clone()).unwrap();
-        find_error_line(&error_msg);
-        println!("{}", error_msg);
+        let modified_file = add_command(file_lines, &command);
 
-        fs::remove_file("./repl-content.c").ok();
-        fs::copy("./previous-repl-content.c", "./repl-content.c").unwrap();
-    } else {
-        let result = Command::new("./repl").output();
-        let output = String::from_utf8(result.unwrap().stdout).unwrap();
-        println!("{}", output);
+        write_result(modified_file.join("\n"));
 
-        // if everything was successful, we copy the working version to a temporary file
-        fs::copy("./repl-content.c", "./previous-repl-content.c").ok();
+        let compile_output = Command::new("gcc")
+            .arg("repl-content.c")
+            .arg("-orepl")
+            .arg("-Werror=implicit-function-declaration")
+            .output()
+            .unwrap();
+
+        if !compile_output.status.success() {
+            let error_msg = String::from_utf8(compile_output.stderr.clone()).unwrap();
+            println!("{}", error_msg);
+
+            fs::remove_file("./repl-content.c").ok();
+            fs::copy("./previous-repl-content.c", "./repl-content.c").unwrap();
+        } else {
+            let result = Command::new("./repl").output();
+            let output = String::from_utf8(result.unwrap().stdout).unwrap();
+
+            if output.len() != 0 {
+                println!("{}", output);
+            }
+
+            // if everything was successful, we copy the working version to a temporary file
+            fs::copy("./repl-content.c", "./previous-repl-content.c").ok();
+        }
     }
-
-    // loop {
-    //     let mut buffer = String::new();
-
-    //     print!(">> ");
-    //     io::stdout().flush().unwrap();
-    //     io::stdin()
-    //         .read_line(&mut buffer)
-    //         .expect("Error reading from STDIN");
-
-    // }
 }
