@@ -20,4 +20,7 @@ Now you can use it:
 C > #include <stdio.h>
 C > printf("hello mom");
 hello mom
+C > int answer = 42;
+C > printf("%d", answer);
+42
 ```
