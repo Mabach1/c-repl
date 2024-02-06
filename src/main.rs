@@ -2,6 +2,10 @@ use std::fs::{self, File};
 use std::io::{self, Write};
 use std::process::Command;
 
+static REPL_PATH: &'static str = "./repl-internals/repl-content.c";
+static PREV_REPL_PATH: &'static str = "./repl-internals/prev-repl-content.c";
+static REPL_EXE: &'static str = "./repl-internals/repl";
+
 fn read_file(file_name: &str) -> String {
     String::from_utf8(fs::read(file_name).unwrap_or_default()).unwrap()
 }
@@ -34,11 +38,32 @@ fn add_command<'a>(file_lines: Vec<&'a str>, command: &'a String) -> Vec<&'a str
     res
 }
 
-fn main() {
-    static REPL_PATH: &'static str = "./repl-internals/repl-content.c";
-    static PREV_REPL_PATH: &'static str = "./repl-internals/prev-repl-content.c";
-    static REPL_EXE: &'static str = "./repl-internals/repl";
+fn command_execute() -> String {
+    let command_output;
 
+    let compile_output = Command::new("gcc")
+        .arg(REPL_PATH)
+        .arg("-orepl-internals/repl")
+        .arg("-Werror=implicit-function-declaration")
+        .output()
+        .unwrap();
+
+    if !compile_output.status.success() {
+        command_output = String::from_utf8(compile_output.stderr.clone()).unwrap();
+
+        fs::remove_file(REPL_PATH).ok();
+        fs::copy(PREV_REPL_PATH, REPL_PATH).unwrap();
+    } else {
+        let result = Command::new(REPL_EXE).output();
+        command_output = String::from_utf8(result.unwrap().stdout).unwrap();
+
+        fs::copy(REPL_PATH, PREV_REPL_PATH).ok();
+    }
+
+    command_output
+}
+
+fn main() {
     loop {
         let mut buffer = String::new();
 
@@ -57,28 +82,10 @@ fn main() {
 
         write_result(REPL_PATH, &modified_file.join("\n"));
 
-        let compile_output = Command::new("gcc")
-            .arg(REPL_PATH)
-            .arg("-orepl-internals/repl")
-            .arg("-Werror=implicit-function-declaration")
-            .output()
-            .unwrap();
-
-        if !compile_output.status.success() {
-            let error_msg = String::from_utf8(compile_output.stderr.clone()).unwrap();
-            println!("{}", error_msg);
-
-            fs::remove_file(REPL_PATH).ok();
-            fs::copy(PREV_REPL_PATH, REPL_PATH).unwrap();
-        } else {
-            let result = Command::new(REPL_EXE).output();
-            let output = String::from_utf8(result.unwrap().stdout).unwrap();
-
-            if !output.is_empty() {
-                println!("{}", output);
-            }
-
-            fs::copy(REPL_PATH, PREV_REPL_PATH).ok();
+        let command_result = command_execute();
+        
+        if !command_result.is_empty() {
+            println!("{}", command_result);
         }
     }
 }
