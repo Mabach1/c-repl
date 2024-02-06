@@ -1,15 +1,14 @@
-use std::fs;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{self, Write};
 use std::process::Command;
 
 fn read_file(file_name: &str) -> String {
-    String::from_utf8(fs::read(file_name).unwrap()).unwrap()
+    String::from_utf8(fs::read(file_name).unwrap_or_default()).unwrap()
 }
 
-fn write_result(file_contents: String) {
-    fs::remove_file("./repl-content.c").unwrap();
-    fs::write("./repl-content.c", file_contents).unwrap();
+fn write_result(file_name: &str, file_contents: &str) {
+    let mut file = File::create(file_name).unwrap();
+    file.write_all(file_contents.as_bytes()).unwrap();
 }
 
 fn add_command<'a>(file_lines: Vec<&'a str>, command: &'a String) -> Vec<&'a str> {
@@ -22,7 +21,6 @@ fn add_command<'a>(file_lines: Vec<&'a str>, command: &'a String) -> Vec<&'a str
     }
 
     for line in file_lines {
-        // we don't want to print everything over and over
         if line.contains("printf") {
             continue;
         }
@@ -34,30 +32,6 @@ fn add_command<'a>(file_lines: Vec<&'a str>, command: &'a String) -> Vec<&'a str
         res.push(line);
     }
     res
-}
-
-// might be useful later
-fn find_error_line(error_output: &String) -> usize {
-    let lines: Vec<_> = error_output.split("\n").collect();
-
-    let error_msg_prefix = "repl-content.c:";
-    let err_line = lines.get(1).unwrap().to_string();
-    let line_number_idx = err_line
-        .find(error_msg_prefix)
-        .map(|idx| idx + error_msg_prefix.len())
-        .unwrap();
-
-    let mut res_lit = String::new();
-
-    for ch in err_line[line_number_idx..]
-        .chars()
-        .by_ref()
-        .take_while(|c| c.is_numeric())
-    {
-        res_lit.push(ch);
-    }
-
-    res_lit.parse::<usize>().unwrap()
 }
 
 fn main() {
@@ -77,7 +51,7 @@ fn main() {
 
         let modified_file = add_command(file_lines, &command);
 
-        write_result(modified_file.join("\n"));
+        write_result("./repl-content.c", &modified_file.join("\n"));
 
         let compile_output = Command::new("gcc")
             .arg("repl-content.c")
@@ -96,11 +70,10 @@ fn main() {
             let result = Command::new("./repl").output();
             let output = String::from_utf8(result.unwrap().stdout).unwrap();
 
-            if output.len() != 0 {
+            if !output.is_empty() {
                 println!("{}", output);
             }
 
-            // if everything was successful, we copy the working version to a temporary file
             fs::copy("./repl-content.c", "./previous-repl-content.c").ok();
         }
     }
