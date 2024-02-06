@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::process::Command;
@@ -38,7 +39,12 @@ fn add_command<'a>(file_lines: Vec<&'a str>, command: &'a String) -> Vec<&'a str
     res
 }
 
-fn command_execute() -> String {
+enum CommandExecuteResult {
+    Success(String),
+    Fail(String),
+}
+
+fn command_execute() -> CommandExecuteResult {
     let command_output;
 
     let compile_output = Command::new("gcc")
@@ -49,13 +55,15 @@ fn command_execute() -> String {
         .unwrap();
 
     if !compile_output.status.success() {
-        command_output = String::from_utf8(compile_output.stderr.clone()).unwrap();
+        command_output =
+            CommandExecuteResult::Fail(String::from_utf8(compile_output.stderr.clone()).unwrap());
 
         fs::remove_file(REPL_PATH).ok();
         fs::copy(PREV_REPL_PATH, REPL_PATH).unwrap();
     } else {
         let result = Command::new(REPL_EXE).output();
-        command_output = String::from_utf8(result.unwrap().stdout).unwrap();
+        command_output =
+            CommandExecuteResult::Success(String::from_utf8(result.unwrap().stdout).unwrap());
 
         fs::copy(REPL_PATH, PREV_REPL_PATH).ok();
     }
@@ -74,6 +82,45 @@ fn repl_internal_reset() {
 
     fs::write(REPL_PATH, default_setup).unwrap();
     fs::write(PREV_REPL_PATH, default_setup).unwrap();
+}
+
+fn find_substring_index(haystack: &str, needle: &str) -> Option<usize> {
+    haystack[needle.len()..]
+        .find(needle)
+        .map(|idx| idx + needle.len())
+}
+
+fn format_error(error_msg: String) -> HashSet<String> {
+    let msg = error_msg.clone();
+    let splitted: Vec<&str> = msg.split("\n").collect();
+
+    let mut error_idxs = vec![];
+    let mut note_idxs = vec![];
+
+    for (idx, msg) in splitted.iter().enumerate() {
+        if msg.contains("error: ") {
+            error_idxs.push(idx);
+        } else if msg.contains("note: ") {
+            note_idxs.push(idx);
+        }
+    }
+
+    let mut formatted_msgs = HashSet::new();
+
+    for idx in note_idxs {
+        let sub_str_idx = find_substring_index(splitted.get(idx).unwrap(), "note: ");
+        let stripped_msg = &splitted.get(idx).unwrap()[sub_str_idx.unwrap()..];
+        formatted_msgs.insert(stripped_msg.to_string());
+        // TODO: insert the squiggly line with the wrong command
+    }
+
+    for idx in error_idxs {
+        let sub_str_idx = find_substring_index(splitted.get(idx).unwrap(), "error: ");
+        let stripped_msg = &splitted.get(idx).unwrap()[sub_str_idx.unwrap()..];
+        formatted_msgs.insert(stripped_msg.to_string());
+    }
+
+    formatted_msgs
 }
 
 fn main() {
@@ -101,10 +148,19 @@ fn main() {
 
         write_result(REPL_PATH, &modified_file.join("\n"));
 
-        let command_result = command_execute();
-
-        if !command_result.is_empty() {
-            println!("{}", command_result);
+        match command_execute() {
+            CommandExecuteResult::Success(output) => {
+                if !output.is_empty() {
+                    println!("{}", output);
+                }
+            }
+            CommandExecuteResult::Fail(err_msg) => {
+                let formatted_err = format_error(err_msg);
+                
+                for err in formatted_err {
+                    println!("{}", err); 
+                }
+            }
         }
     }
 
