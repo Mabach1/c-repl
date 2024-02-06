@@ -90,6 +90,10 @@ fn main() {
 
         let command = buffer.trim_end().to_string();
 
+        if command == ":q" {
+            break;
+        }
+
         let file_content = read_file(REPL_PATH);
         let file_lines: Vec<&str> = file_content.split('\n').collect();
 
