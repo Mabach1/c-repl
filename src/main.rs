@@ -90,34 +90,35 @@ fn find_substring_index(haystack: &str, needle: &str) -> Option<usize> {
         .map(|idx| idx + needle.len())
 }
 
-fn format_error(error_msg: String) -> HashSet<String> {
+fn format_error(error_msg: String) -> HashSet<Vec<String>> {
     let msg = error_msg.clone();
     let splitted: Vec<&str> = msg.split("\n").collect();
 
     let mut error_idxs = vec![];
-    let mut note_idxs = vec![];
 
     for (idx, msg) in splitted.iter().enumerate() {
         if msg.contains("error: ") {
             error_idxs.push(idx);
-        } else if msg.contains("note: ") {
-            note_idxs.push(idx);
         }
     }
 
     let mut formatted_msgs = HashSet::new();
 
-    for idx in note_idxs {
-        let sub_str_idx = find_substring_index(splitted.get(idx).unwrap(), "note: ");
-        let stripped_msg = &splitted.get(idx).unwrap()[sub_str_idx.unwrap()..];
-        formatted_msgs.insert(stripped_msg.to_string());
-        // TODO: insert the squiggly line with the wrong command
-    }
-
     for idx in error_idxs {
-        let sub_str_idx = find_substring_index(splitted.get(idx).unwrap(), "error: ");
+        let mut msg_vector = vec![];
+
+        let needle = "error: ";
+        let sub_str_idx = find_substring_index(splitted.get(idx).unwrap(), needle);
         let stripped_msg = &splitted.get(idx).unwrap()[sub_str_idx.unwrap()..];
-        formatted_msgs.insert(stripped_msg.to_string());
+
+        msg_vector.push(stripped_msg);
+
+        let sub_str_idx = find_substring_index(splitted.get(idx + 1).unwrap(), "| ");
+
+        msg_vector.push(&splitted.get(idx + 1).unwrap()[sub_str_idx.unwrap() + "| ".len()..]);
+        msg_vector.push(&splitted.get(idx + 2).unwrap()[sub_str_idx.unwrap() + "| ".len()..]);
+
+        formatted_msgs.insert(msg_vector.iter().map(|s| s.to_string()).collect());
     }
 
     formatted_msgs
@@ -156,10 +157,12 @@ fn main() {
             }
             CommandExecuteResult::Fail(err_msg) => {
                 let formatted_err = format_error(err_msg);
-                
-                for err in formatted_err {
-                    println!("{}", err); 
-                }
+
+                formatted_err.iter().for_each(|msgs| {
+                    for msg in msgs {
+                        println!("{}", msg);
+                    }
+                })
             }
         }
     }
